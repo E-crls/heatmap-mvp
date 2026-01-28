@@ -1,0 +1,100 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+profile_default/
+ipython_config.py
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Machine Learning / Data Science
+*.mo
+*.pot
+*.log
+*.sqlite
+*.db
+
+# Large files / Datasets
+data/
+datasets/
+models/
+*.h5
+*.pkl
+*.pth
+*.pt
+*.onnx
+*.tflite
+*.pb
+
+# Qdrant / Vector DBs
+storage/
+snapshots/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+image.jpeg
+logo.png
+
+# Cache embeddings
+embeddings_cache/
+embeddings_cache_v3/
+*.npz
+
+# Outputs (generated)
+outputs/
+static/heatmaps/
+static/overlays/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Test/debug files
+test_*.py
+debug_*.py
+correct_debug.py
+
+# Logos similares source folder (images already in static/images)
+logos_similares/

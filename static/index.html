@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INPI Heatmap Visual - Demonstração de Similaridade</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#005c9e',
+                        secondary: '#0077cc',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .image-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .image-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        .image-card.selected {
+            ring: 4px;
+            ring-color: #005c9e;
+            transform: scale(1.02);
+        }
+        .heatmap-toggle {
+            transition: all 0.2s ease;
+        }
+        .heatmap-toggle.active {
+            background-color: #005c9e;
+            color: white;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #005c9e;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .similarity-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #fbbf24, #f97316, #ef4444);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-primary text-white py-6 shadow-lg">
+        <div class="container mx-auto px-4">
+            <h1 class="text-3xl font-bold text-center">INPI Visual Search - Heatmap Demo</h1>
+            <p class="text-center text-blue-100 mt-2">Demonstração de Mapa de Calor para Similaridade de Marcas</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <!-- Step 1: Image Selection -->
+        <section id="step-selection" class="mb-12">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">1</span>
+                    Selecione uma Imagem
+                </h2>
+                <p class="text-gray-600 mb-6">Escolha uma das imagens abaixo para encontrar marcas similares e visualizar o mapa de calor.</p>
+                
+                <div id="image-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                    <!-- Images will be loaded here -->
+                    <div class="col-span-full flex justify-center py-8">
+                        <div class="loading-spinner"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 2: Similar Images Results -->
+        <section id="step-results" class="mb-12 hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">2</span>
+                    Imagens Mais Similares
+                </h2>
+                
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <!-- Query Image -->
+                    <div class="lg:w-1/3">
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h3 class="font-semibold text-gray-700 mb-3">Imagem Selecionada</h3>
+                            <img id="query-image" src="" alt="Imagem selecionada" class="w-full h-48 object-contain rounded-lg bg-white shadow-sm">
+                            <p id="query-name" class="text-center text-gray-600 mt-2 font-medium"></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Similar Images List -->
+                    <div class="lg:w-2/3">
+                        <h3 class="font-semibold text-gray-700 mb-3">Top 5 Similares</h3>
+                        <div id="similar-images" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                            <!-- Similar images will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-6 text-center">
+                    <button id="btn-generate-heatmaps" class="bg-primary hover:bg-secondary text-white font-bold py-3 px-8 rounded-lg transition-colors shadow-md">
+                        Gerar Mapas de Calor
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Step 3: Heatmap Visualization -->
+        <section id="step-heatmap" class="mb-12 hidden">
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="bg-primary text-white rounded-full w-8 h-8 flex items-center justify-center mr-3 text-sm">3</span>
+                    Visualização do Mapa de Calor
+                </h2>
+                <p class="text-gray-600 mb-6">
+                    O mapa de calor mostra as regiões de maior similaridade entre a imagem selecionada e as marcas encontradas.
+                    <strong class="text-red-600">Vermelho = Alta similaridade</strong>, 
+                    <strong class="text-blue-600">Azul = Baixa similaridade</strong>.
+                </p>
+                
+                <div class="flex flex-col lg:flex-row gap-8">
+                    <!-- Heatmap Controls -->
+                    <div class="lg:w-1/4">
+                        <div class="bg-gray-50 rounded-lg p-4 sticky top-4">
+                            <h3 class="font-semibold text-gray-700 mb-4">Controles</h3>
+                            
+                            <!-- Individual Heatmap Toggles -->
+                            <div class="space-y-3 mb-6">
+                                <p class="text-sm text-gray-500 mb-2">Selecione os mapas de calor:</p>
+                                <div id="heatmap-toggles" class="space-y-2">
+                                    <!-- Toggles will be generated dynamically -->
+                                </div>
+                            </div>
+                            
+                            <!-- Overlay All Button -->
+                            <button id="btn-overlay-all" class="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-bold py-2 px-4 rounded-lg transition-all mb-4">
+                                Ver Todos Sobrepostos
+                            </button>
+                            
+                            <!-- Reset Button -->
+                            <button id="btn-reset-heatmap" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors">
+                                Mostrar Original
+                            </button>
+                            
+                            <!-- Legend -->
+                            <div class="mt-6 pt-4 border-t border-gray-200">
+                                <p class="text-sm text-gray-500 mb-2">Legenda de Intensidade:</p>
+                                <div class="h-4 rounded-full bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 to-red-500"></div>
+                                <div class="flex justify-between text-xs text-gray-500 mt-1">
+                                    <span>Baixa</span>
+                                    <span>Alta</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Heatmap Display -->
+                    <div class="lg:w-3/4">
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <div class="relative">
+                                <img id="heatmap-display" src="" alt="Mapa de Calor" class="w-full max-h-[600px] object-contain rounded-lg shadow-lg mx-auto fade-in">
+                                <div id="heatmap-loading" class="hidden absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg">
+                                    <div class="text-center">
+                                        <div class="loading-spinner mx-auto mb-4"></div>
+                                        <p class="text-gray-600">Gerando mapa de calor...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <p id="heatmap-caption" class="text-center text-gray-600 mt-4"></p>
+                        </div>
+                        
+                        <!-- Heatmap Thumbnails -->
+                        <div class="mt-6">
+                            <h4 class="font-semibold text-gray-700 mb-3">Mapas de Calor Individuais</h4>
+                            <div id="heatmap-thumbnails" class="grid grid-cols-3 gap-4">
+                                <!-- Thumbnails will be generated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Back to Selection Button -->
+        <div id="back-button" class="text-center hidden mb-8">
+            <button id="btn-back" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-lg transition-colors shadow-md">
+                ← Selecionar Outra Imagem
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-6 mt-auto">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-gray-400">INPI Visual Search - MVP de Demonstração</p>
+            <p class="text-sm text-gray-500 mt-2">Powered by DINOv3 (Meta AI)</p>
+        </div>
+    </footer>
+
+    <script>
+        // State management
+        let state = {
+            images: [],
+            selectedImage: null,
+            similarImages: [],
+            heatmaps: [],
+            overlayAll: null,
+            currentDisplay: 'original'
+        };
+
+        // DOM Elements
+        const imageGrid = document.getElementById('image-grid');
+        const stepResults = document.getElementById('step-results');
+        const stepHeatmap = document.getElementById('step-heatmap');
+        const backButton = document.getElementById('back-button');
+        const queryImage = document.getElementById('query-image');
+        const queryName = document.getElementById('query-name');
+        const similarImagesContainer = document.getElementById('similar-images');
+        const heatmapDisplay = document.getElementById('heatmap-display');
+        const heatmapCaption = document.getElementById('heatmap-caption');
+        const heatmapLoading = document.getElementById('heatmap-loading');
+        const heatmapToggles = document.getElementById('heatmap-toggles');
+        const heatmapThumbnails = document.getElementById('heatmap-thumbnails');
+
+        // API Base URL
+        const API_BASE = '';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadImages();
+            setupEventListeners();
+        });
+
+        // Load available images
+        async function loadImages() {
+            try {
+                const response = await fetch(`${API_BASE}/api/images`);
+                state.images = await response.json();
+                renderImageGrid();
+            } catch (error) {
+                console.error('Error loading images:', error);
+                imageGrid.innerHTML = `
+                    <div class="col-span-full text-center py-8 text-red-500">
+                        <p>Erro ao carregar imagens. Verifique se o servidor está rodando.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render image selection grid
+        function renderImageGrid() {
+            imageGrid.innerHTML = state.images.map(img => `
+                <div class="image-card bg-white rounded-lg shadow-md p-3 border-2 border-transparent hover:border-primary"
+                     data-name="${img.name}" onclick="selectImage('${img.name}')">
+                    <img src="${img.url}" alt="${img.name}" 
+                         class="w-full h-32 object-contain rounded bg-gray-50">
+                    <p class="text-center text-sm text-gray-700 mt-2 truncate" title="${img.name}">
+                        ${img.name}
+                    </p>
+                </div>
+            `).join('');
+        }
+
+        // Select an image for comparison
+        async function selectImage(imageName) {
+            state.selectedImage = state.images.find(img => img.name === imageName);
+            
+            if (!state.selectedImage) return;
+            
+            // Update UI
+            document.querySelectorAll('.image-card').forEach(card => {
+                card.classList.remove('selected', 'border-primary');
+                if (card.dataset.name === imageName) {
+                    card.classList.add('selected', 'border-primary');
+                }
+            });
+            
+            // Search for similar images
+            await searchSimilar(imageName);
+        }
+
+        // Search for similar images
+        async function searchSimilar(imageName) {
+            try {
+                similarImagesContainer.innerHTML = `
+                    <div class="col-span-full flex justify-center py-8">
+                        <div class="loading-spinner"></div>
+                    </div>
+                `;
+                
+                stepResults.classList.remove('hidden');
+                stepHeatmap.classList.add('hidden');
+                backButton.classList.remove('hidden');
+                
+                queryImage.src = state.selectedImage.url;
+                queryName.textContent = state.selectedImage.name;
+                
+                const response = await fetch(`${API_BASE}/api/search?image_name=${encodeURIComponent(imageName)}&top_k=5`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                state.similarImages = data.similar_images;
+                
+                renderSimilarImages();
+                
+            } catch (error) {
+                console.error('Error searching similar:', error);
+                similarImagesContainer.innerHTML = `
+                    <div class="col-span-full text-center py-8 text-red-500">
+                        <p>Erro ao buscar imagens similares.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Render similar images
+        function renderSimilarImages() {
+            similarImagesContainer.innerHTML = state.similarImages.map(img => `
+                <div class="bg-gray-50 rounded-lg p-2 shadow-sm">
+                    <div class="relative">
+                        <span class="absolute top-1 left-1 bg-primary text-white text-xs px-2 py-1 rounded-full">
+                            #${img.rank}
+                        </span>
+                        <img src="${img.url}" alt="${img.name}" 
+                             class="w-full h-24 object-contain rounded bg-white">
+                    </div>
+                    <p class="text-center text-xs text-gray-600 mt-1 truncate" title="${img.name}">
+                        ${img.name}
+                    </p>
+                    <div class="mt-1">
+                        <div class="similarity-bar" style="width: ${(img.similarity * 100).toFixed(0)}%"></div>
+                        <p class="text-xs text-gray-500 text-center mt-1">
+                            ${(img.similarity * 100).toFixed(1)}% similar
+                        </p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Generate heatmaps
+        async function generateHeatmaps() {
+            try {
+                heatmapLoading.classList.remove('hidden');
+                stepHeatmap.classList.remove('hidden');
+                
+                // Scroll to heatmap section
+                stepHeatmap.scrollIntoView({ behavior: 'smooth' });
+                
+                const response = await fetch(`${API_BASE}/api/heatmap?image_name=${encodeURIComponent(state.selectedImage.name)}&top_k=3&include_overlay=true`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                state.heatmaps = data.heatmaps;
+                state.overlayAll = data.overlay_all_base64;
+                
+                renderHeatmapControls();
+                renderHeatmapThumbnails();
+                
+                // Show first heatmap by default
+                if (state.heatmaps.length > 0) {
+                    showHeatmap(0);
+                }
+                
+                heatmapLoading.classList.add('hidden');
+                
+            } catch (error) {
+                console.error('Error generating heatmaps:', error);
+                heatmapLoading.classList.add('hidden');
+                alert('Erro ao gerar mapas de calor.');
+            }
+        }
+
+        // Render heatmap toggle controls
+        function renderHeatmapControls() {
+            heatmapToggles.innerHTML = state.heatmaps.map((hm, i) => `
+                <button class="heatmap-toggle w-full text-left px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 flex items-center justify-between"
+                        data-index="${i}" onclick="showHeatmap(${i})">
+                    <span class="flex items-center">
+                        <span class="w-6 h-6 rounded-full bg-primary text-white text-xs flex items-center justify-center mr-2">
+                            ${hm.rank}
+                        </span>
+                        <span class="text-sm truncate" style="max-width: 120px">${hm.name}</span>
+                    </span>
+                    <span class="text-xs text-gray-500">${(hm.similarity * 100).toFixed(0)}%</span>
+                </button>
+            `).join('');
+        }
+
+        // Render heatmap thumbnails
+        function renderHeatmapThumbnails() {
+            heatmapThumbnails.innerHTML = state.heatmaps.map((hm, i) => `
+                <div class="cursor-pointer rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow border-2 border-transparent hover:border-primary"
+                     onclick="showHeatmap(${i})">
+                    <img src="${hm.heatmap_base64}" alt="Heatmap ${hm.rank}" 
+                         class="w-full h-32 object-contain bg-white">
+                    <div class="bg-gray-100 p-2">
+                        <p class="text-xs text-gray-700 truncate">#${hm.rank} - ${hm.name}</p>
+                        <p class="text-xs text-gray-500">${(hm.similarity * 100).toFixed(1)}% similar</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Show specific heatmap
+        function showHeatmap(index) {
+            const heatmap = state.heatmaps[index];
+            if (!heatmap) return;
+            
+            state.currentDisplay = `heatmap-${index}`;
+            heatmapDisplay.src = heatmap.heatmap_base64;
+            heatmapCaption.textContent = `Mapa de Calor #${heatmap.rank}: ${heatmap.name} (${(heatmap.similarity * 100).toFixed(1)}% similaridade)`;
+            
+            // Update toggle active state
+            document.querySelectorAll('.heatmap-toggle').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
+        }
+
+        // Show all heatmaps overlaid
+        function showOverlayAll() {
+            if (!state.overlayAll) return;
+            
+            state.currentDisplay = 'overlay-all';
+            heatmapDisplay.src = state.overlayAll;
+            heatmapCaption.textContent = 'Todos os mapas de calor sobrepostos (opacidade variável por similaridade)';
+            
+            // Clear toggle active states
+            document.querySelectorAll('.heatmap-toggle').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+
+        // Reset to original image
+        function resetHeatmap() {
+            state.currentDisplay = 'original';
+            heatmapDisplay.src = state.selectedImage.url;
+            heatmapCaption.textContent = 'Imagem original (sem mapa de calor)';
+            
+            // Clear toggle active states
+            document.querySelectorAll('.heatmap-toggle').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+
+        // Go back to selection
+        function goBack() {
+            stepResults.classList.add('hidden');
+            stepHeatmap.classList.add('hidden');
+            backButton.classList.add('hidden');
+            
+            state.selectedImage = null;
+            state.similarImages = [];
+            state.heatmaps = [];
+            state.overlayAll = null;
+            
+            document.querySelectorAll('.image-card').forEach(card => {
+                card.classList.remove('selected', 'border-primary');
+            });
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('btn-generate-heatmaps').addEventListener('click', generateHeatmaps);
+            document.getElementById('btn-overlay-all').addEventListener('click', showOverlayAll);
+            document.getElementById('btn-reset-heatmap').addEventListener('click', resetHeatmap);
+            document.getElementById('btn-back').addEventListener('click', goBack);
+        }
+    </script>
+</body>
+</html>
