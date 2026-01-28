@@ -69,7 +69,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Imagens selecionáveis
-SELECTABLE_IMAGES = ["02_olympics", "03_chicago_bulls", "input_image", "Audi_logo_detail.svg"]
+SELECTABLE_IMAGES = ["03_chicago_bulls", "input_image", "Audi_logo_detail.svg"]
 
 
 @st.cache_resource

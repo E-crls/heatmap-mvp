@@ -76,7 +76,7 @@ def get_heatmap_generator():
 
 
 # Imagens que o usuário pode selecionar como query
-SELECTABLE_IMAGES = ["02_olympics", "03_chicago_bulls", "input_image", "Audi_logo_detail.svg"]
+SELECTABLE_IMAGES = ["03_chicago_bulls", "input_image", "Audi_logo_detail.svg"]
 
 
 def get_selectable_images() -> List[Path]:
